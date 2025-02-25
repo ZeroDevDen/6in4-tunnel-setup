@@ -124,4 +124,8 @@ curl -v --request PUT \
 --data '{"ipv4remote": "'\$WAN_ADDR'"}'
 EOF
 
-cat <<EOF >
+cat <<EOF >> /etc/sysupgrade.conf
+/etc/hotplug.d/online/10-send-wan-ip-to-6in4ru
+EOF
+
+echo "Конфигурация завершена. Приятного использования!"
