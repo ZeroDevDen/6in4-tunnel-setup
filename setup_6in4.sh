@@ -42,12 +42,32 @@ fi
 echo "Пожалуйста, введите данные для настройки туннеля 6in4."
 
 # Запрос данных у пользователя
-echo "Введите IP-адрес удалённого сервера (SERVER IP):"
-read SERVER_IP
-echo "Введите ваш IPv6-адрес для клиента (CLIENT P2P):"
-read CLIENT_P2P
-echo "Введите IPv6 Prefix (например, '2001:db8::/64'):"
-read PD_ADDRESS
+while : ; do
+    echo "Введите IP-адрес удалённого сервера (SERVER IP):"
+    read SERVER_IP
+    if [ -n "$SERVER_IP" ]; then
+        break
+    fi
+    echo "Ошибка: IP-адрес не может быть пустым."
+done
+
+while : ; do
+    echo "Введите ваш IPv6-адрес для клиента (CLIENT P2P):"
+    read CLIENT_P2P
+    if [ -n "$CLIENT_P2P" ]; then
+        break
+    fi
+    echo "Ошибка: IPv6-адрес не может быть пустым."
+done
+
+while : ; do
+    echo "Введите IPv6 Prefix (например, '2001:db8::/64'):"
+    read PD_ADDRESS
+    if [ -n "$PD_ADDRESS" ]; then
+        break
+    fi
+    echo "Ошибка: Префикс не может быть пустым."
+done
 
 # Проверка, что все данные были введены
 if [ -z "$SERVER_IP" ] || [ -z "$CLIENT_P2P" ] || [ -z "$PD_ADDRESS" ]; then
@@ -74,10 +94,23 @@ uci commit firewall
 # Шаг 6: Запрос API-ключа и Tunnel ID у пользователя
 echo "Для динамического обновления IP, введите ваш API-ключ и Tunnel ID."
 
-echo "Введите ваш API-ключ:"
-read API_KEY
-echo "Введите ваш Tunnel ID:"
-read TUNNEL_ID
+while : ; do
+    echo "Введите ваш API-ключ:"
+    read API_KEY
+    if [ -n "$API_KEY" ]; then
+        break
+    fi
+    echo "Ошибка: API-ключ не может быть пустым."
+done
+
+while : ; do
+    echo "Введите ваш Tunnel ID:"
+    read TUNNEL_ID
+    if [ -n "$TUNNEL_ID" ]; then
+        break
+    fi
+    echo "Ошибка: Tunnel ID не может быть пустым."
+done
 
 # Проверка, что все данные для API были введены
 if [ -z "$API_KEY" ] || [ -z "$TUNNEL_ID" ]; then
