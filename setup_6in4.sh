@@ -1,13 +1,15 @@
-#!/bin/bash
+#!/bin/sh
 
 # Шаг 1: Проверка серого IP через 2ip.ru
 USER_IP=$(curl -s4 https://2ip.ru)
 
 is_cgnat_ip() {
-    [[ "$1" =~ ^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\..* ]] ||  
-    [[ "$1" =~ ^10\..* ]] ||                                           
-    [[ "$1" =~ ^172\.(1[6-9]|2[0-9]|3[01])\..* ]] ||                   
-    [[ "$1" =~ ^192\.168\..* ]]
+    # Проверка на серый IP
+    echo "$1" | grep -E -q '^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\..*' && return 0
+    echo "$1" | grep -E -q '^10\..*' && return 0
+    echo "$1" | grep -E -q '^172\.(1[6-9]|2[0-9]|3[01])\..*' && return 0
+    echo "$1" | grep -E -q '^192\.168\..*' && return 0
+    return 1
 }
 
 if is_cgnat_ip "$USER_IP"; then
@@ -72,7 +74,7 @@ cat <<EOF > /etc/hotplug.d/iface/90-send-wan-ip-to-6in4
 #!/bin/sh
 
 if [ "\$INTERFACE" = "wan" ] && [ "\$ACTION" = "ifup" ]; then
-    WAN_IP=$(ifstatus wan | jsonfilter -e '@.interface.ipaddr[0]')
+    WAN_IP=\$(ifstatus wan | jsonfilter -e '@.interface.ipaddr[0]')
 
     curl -v --request PUT \
     --url "https://6in4.ru/tunnel/\$API_KEY/\$TUNNEL_ID" \
