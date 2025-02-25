@@ -3,11 +3,12 @@
 # Шаг 1: Проверка серого IP через 2ip.ru
 USER_IP=$(curl -s4 https://2ip.ru)
 
+# Проверка, является ли IP серым (CGNAT)
 is_cgnat_ip() {
-    [ "$1" = "10." ] || 
-    [ "$1" = "100." ] || 
-    [ "$1" = "172." ] || 
-    [ "$1" = "192." ] 
+    case "$1" in
+        10.*|100.*|172.*|192.*) return 0 ;;
+        *) return 1 ;;
+    esac
 }
 
 if is_cgnat_ip "$USER_IP"; then
