@@ -41,9 +41,12 @@ fi
 echo "Пожалуйста, введите данные для настройки туннеля 6in4."
 
 # Запрос данных у пользователя
-read -p "Введите IP-адрес удалённого сервера (SERVER IP): " SERVER_IP
-read -p "Введите ваш IPv6-адрес для клиента (CLIENT P2P): " CLIENT_P2P
-read -p "Введите IPv6 Prefix (например, '2001:db8::/64'): " PD_ADDRESS
+echo "Введите IP-адрес удалённого сервера (SERVER IP):"
+read SERVER_IP
+echo "Введите ваш IPv6-адрес для клиента (CLIENT P2P):"
+read CLIENT_P2P
+echo "Введите IPv6 Prefix (например, '2001:db8::/64'):"
+read PD_ADDRESS
 
 # Проверка, что все данные были введены
 if [ -z "$SERVER_IP" ] || [ -z "$CLIENT_P2P" ] || [ -z "$PD_ADDRESS" ]; then
@@ -70,8 +73,10 @@ uci commit firewall
 # Шаг 6: Запрос API-ключа и Tunnel ID у пользователя
 echo "Для динамического обновления IP, введите ваш API-ключ и Tunnel ID."
 
-read -p "Введите ваш API-ключ: " API_KEY
-read -p "Введите ваш Tunnel ID: " TUNNEL_ID
+echo "Введите ваш API-ключ:"
+read API_KEY
+echo "Введите ваш Tunnel ID:"
+read TUNNEL_ID
 
 # Проверка, что все данные для API были введены
 if [ -z "$API_KEY" ] || [ -z "$TUNNEL_ID" ]; then
