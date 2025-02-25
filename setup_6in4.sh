@@ -89,18 +89,15 @@ fi
 echo "Создание скрипта для динамического обновления IP..."
 mkdir -p /etc/hotplug.d/iface
 cat <<EOF > /etc/hotplug.d/iface/90-online
-if [ "\$INTERFACE" = "loopback" ]
-then
+if [ "\$INTERFACE" = "loopback" ]; then
     exit 0
 fi
 
-if [ "\$ACTION" != "ifup" ] && [ "\$ACTION" != "ifupdate" ]
-then
+if [ "\$ACTION" != "ifup" ] && [ "\$ACTION" != "ifupdate" ]; then
     exit 0
 fi
 
-if [ "\$ACTION" = "ifupdate" ] && [ -z "\$IFUPDATE_ADDRESSES" ] && [ -z "\$IFUPDATE_DATA" ]
-then
+if [ "\$ACTION" = "ifupdate" ] && [ -z "\$IFUPDATE_ADDRESSES" ] && [ -z "\$IFUPDATE_DATA" ]; then
     exit 0
 fi
 
