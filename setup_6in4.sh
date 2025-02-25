@@ -4,12 +4,10 @@
 USER_IP=$(curl -s4 https://2ip.ru)
 
 is_cgnat_ip() {
-    # Проверка на серый IP
-    echo "$1" | grep -E -q '^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\..*' && return 0
-    echo "$1" | grep -E -q '^10\..*' && return 0
-    echo "$1" | grep -E -q '^172\.(1[6-9]|2[0-9]|3[01])\..*' && return 0
-    echo "$1" | grep -E -q '^192\.168\..*' && return 0
-    return 1
+    [ "$(echo "$1" | grep -E '^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\..*')" ] || 
+    [ "$(echo "$1" | grep -E '^10\..*')" ] ||
+    [ "$(echo "$1" | grep -E '^172\.(1[6-9]|2[0-9]|3[01])\..*')" ] || 
+    [ "$(echo "$1" | grep -E '^192\.168\..*')" ]
 }
 
 if is_cgnat_ip "$USER_IP"; then
@@ -70,41 +68,52 @@ read -p "Введите ваш Tunnel ID: " TUNNEL_ID
 
 # Шаг 7: Создание скрипта для динамического обновления IP
 echo "Создание скрипта для динамического обновления IP..."
-cat <<EOF > /etc/hotplug.d/iface/90-send-wan-ip-to-6in4
+cat <<EOF > /etc/hotplug.d/iface/90-online
 #!/bin/sh
-
-if [ "\$INTERFACE" = "wan" ] && [ "\$ACTION" = "ifup" ]; then
-    WAN_IP=\$(ifstatus wan | jsonfilter -e '@.interface.ipaddr[0]')
-
-    curl -v --request PUT \
-    --url "https://6in4.ru/tunnel/\$API_KEY/\$TUNNEL_ID" \
-    --header 'Content-Type: application/json' \
-    --data '{"ipv4remote": "\$WAN_IP"}'
+if [ "${INTERFACE}" = "loopback" ]; then
+    exit 0
 fi
+
+if [ "${ACTION}" != "ifup" ] && [ "${ACTION}" != "ifupdate" ]; then
+    exit 0
+fi
+
+if [ "${ACTION}" = "ifupdate" ] && [ -z "${IFUPDATE_ADDRESSES}" ] && [ -z "${IFUPDATE_DATA}" ]; then
+    exit 0
+fi
+
+hotplug-call online
 EOF
 
-chmod +x /etc/hotplug.d/iface/90-send-wan-ip-to-6in4
+# Шаг 8: Добавление в sysupgrade.conf
+echo "Добавление в sysupgrade.conf..."
+cat <<EOF >> /etc/sysupgrade.conf
+/etc/hotplug.d/iface/90-online
+EOF
 
-# Шаг 8: Удаление секции youtube и доменов из other_zapret в /etc/config/youtubeUnblock
-echo "Удаление секции 'youtube' и доменов из 'other_zapret' в конфигурации youtubeUnblock..."
+# Шаг 9: Создание директории для online
+mkdir -p /etc/hotplug.d/online
 
-sed -i '/config section.*youtube/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*youtube.com/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*ggpht.com/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*ytimg.com/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*play.google.com/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*youtu.be/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*googleapis.com/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*googleusercontent.com/d' /etc/config/youtubeUnblock
-sed -i '/list sni_domains.*gstatic.com/d' /etc/config/youtubeUnblock
+# Шаг 10: Скрипт для отправки WAN IP на 6in4.ru
+echo "Создание скрипта для отправки WAN IP на 6in4.ru..."
+cat <<EOF > /etc/hotplug.d/online/10-send-wan-ip-to-6in4ru
+#!/bin/sh
+. /lib/functions/network.sh
+network_flush_cache
+network_find_wan WAN_IF
+network_get_ipaddr WAN_ADDR "${WAN_IF}"
 
-DOMAINS=("cdninstagram.com" "instagram.com" "ig.me" "fbcdn.net" "facebook.com" "facebook.net" "twitter.com" "t.co" "twimg.com" "ads-twitter.com" "x.com" "pscp.tv" "twtrdns.net" "twttr.com" "periscope.tv" "tweetdeck.com" "twitpic.com" "twitter.co" "twitterinc.com" "twitteroauth.com" "twitterstat.us")
-for DOMAIN in "${DOMAINS[@]}"; do
-    sed -i "/list sni_domains.*$DOMAIN/d" /etc/config/youtubeUnblock
-done
+curl -v --request PUT \
+--url https://6in4.ru/tunnel/$API_KEY/$TUNNEL_ID \
+--header 'Content-Type: application/json' \
+--data '{"ipv4remote": "'$WAN_ADDR'"}'
+EOF
 
-# Применяем изменения и перезапускаем службу youtubeUnblock
-echo "Применение изменений и перезапуск службы youtubeUnblock..."
-/etc/init.d/youtubeUnblock restart
+# Шаг 11: Добавление в sysupgrade.conf для online скрипта
+echo "Добавление в sysupgrade.conf для online..."
+cat <<EOF >> /etc/sysupgrade.conf
+/etc/hotplug.d/online/10-send-wan-ip-to-6in4ru
+EOF
 
+# Завершение настройки
 echo "Конфигурация завершена. Приятного использования!"
