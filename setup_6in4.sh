@@ -4,10 +4,10 @@
 USER_IP=$(curl -s4 https://2ip.ru)
 
 is_cgnat_ip() {
-    [ "$(echo "$1" | grep -E '^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\..*')" ] || 
-    [ "$(echo "$1" | grep -E '^10\..*')" ] ||
-    [ "$(echo "$1" | grep -E '^172\.(1[6-9]|2[0-9]|3[01])\..*')" ] || 
-    [ "$(echo "$1" | grep -E '^192\.168\..*')" ]
+    [ "$1" = "10." ] || 
+    [ "$1" = "100." ] || 
+    [ "$1" = "172." ] || 
+    [ "$1" = "192." ] 
 }
 
 if is_cgnat_ip "$USER_IP"; then
@@ -40,9 +40,16 @@ fi
 # Шаг 3: Запрашиваем данные у пользователя для настройки туннеля
 echo "Пожалуйста, введите данные для настройки туннеля 6in4."
 
-read -p "Введите SERVER IP: " SERVER_IP
-read -p "Введите IPv6 CLIENT P2P: " CLIENT_P2P
-read -p "Введите IPv6 PD ADDRESS/64: " PD_ADDRESS
+# Запрос данных у пользователя
+read -p "Введите IP-адрес удалённого сервера (SERVER IP): " SERVER_IP
+read -p "Введите ваш IPv6-адрес для клиента (CLIENT P2P): " CLIENT_P2P
+read -p "Введите IPv6 Prefix (например, '2001:db8::/64'): " PD_ADDRESS
+
+# Проверка, что все данные были введены
+if [ -z "$SERVER_IP" ] || [ -z "$CLIENT_P2P" ] || [ -z "$PD_ADDRESS" ]; then
+    echo "Ошибка: Все данные должны быть введены!"
+    exit 1
+fi
 
 # Шаг 4: Настройка интерфейса 6in4
 echo "Настройка интерфейса 6in4..."
@@ -66,54 +73,50 @@ echo "Для динамического обновления IP, введите 
 read -p "Введите ваш API-ключ: " API_KEY
 read -p "Введите ваш Tunnel ID: " TUNNEL_ID
 
+# Проверка, что все данные для API были введены
+if [ -z "$API_KEY" ] || [ -z "$TUNNEL_ID" ]; then
+    echo "Ошибка: Все данные для API должны быть введены!"
+    exit 1
+fi
+
 # Шаг 7: Создание скрипта для динамического обновления IP
 echo "Создание скрипта для динамического обновления IP..."
+mkdir -p /etc/hotplug.d/iface
 cat <<EOF > /etc/hotplug.d/iface/90-online
-#!/bin/sh
-if [ "${INTERFACE}" = "loopback" ]; then
-    exit 0
+if [ "\$INTERFACE" = "loopback" ]
+then exit 0
 fi
-
-if [ "${ACTION}" != "ifup" ] && [ "${ACTION}" != "ifupdate" ]; then
-    exit 0
+if [ "\$ACTION" != "ifup" ] \
+&& [ "\$ACTION" != "ifupdate" ]
+then exit 0
 fi
-
-if [ "${ACTION}" = "ifupdate" ] && [ -z "${IFUPDATE_ADDRESSES}" ] && [ -z "${IFUPDATE_DATA}" ]; then
-    exit 0
+if [ "\$ACTION" = "ifupdate" ] \
+&& [ -z "\$IFUPDATE_ADDRESSES" ] \
+&& [ -z "\$IFUPDATE_DATA" ]
+then exit 0
 fi
-
 hotplug-call online
 EOF
 
-# Шаг 8: Добавление в sysupgrade.conf
-echo "Добавление в sysupgrade.conf..."
 cat <<EOF >> /etc/sysupgrade.conf
 /etc/hotplug.d/iface/90-online
 EOF
 
-# Шаг 9: Создание директории для online
+# Шаг 8: Создание скрипта для отправки WAN IP на 6in4.ru
 mkdir -p /etc/hotplug.d/online
-
-# Шаг 10: Скрипт для отправки WAN IP на 6in4.ru
-echo "Создание скрипта для отправки WAN IP на 6in4.ru..."
 cat <<EOF > /etc/hotplug.d/online/10-send-wan-ip-to-6in4ru
-#!/bin/sh
 . /lib/functions/network.sh
 network_flush_cache
 network_find_wan WAN_IF
-network_get_ipaddr WAN_ADDR "${WAN_IF}"
-
+network_get_ipaddr WAN_ADDR "\$WAN_IF"
 curl -v --request PUT \
---url https://6in4.ru/tunnel/$API_KEY/$TUNNEL_ID \
+--url "https://6in4.ru/tunnel/$API_KEY/$TUNNEL_ID" \
 --header 'Content-Type: application/json' \
---data '{"ipv4remote": "'$WAN_ADDR'"}'
+--data '{"ipv4remote": "'\$WAN_ADDR'"}'
 EOF
 
-# Шаг 11: Добавление в sysupgrade.conf для online скрипта
-echo "Добавление в sysupgrade.conf для online..."
 cat <<EOF >> /etc/sysupgrade.conf
 /etc/hotplug.d/online/10-send-wan-ip-to-6in4ru
 EOF
 
-# Завершение настройки
 echo "Конфигурация завершена. Приятного использования!"
